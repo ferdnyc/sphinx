@@ -455,6 +455,55 @@ class PyCurrentModule(SphinxDirective):
         return []
 
 
+class PyCurrentClass(SphinxDirective):
+    """
+    Like PyCurrentModule, this directive exists to adjust Sphinx's
+    view of the context for the current documentation.
+
+    Because classes are hierarchical, this directive will only affect
+    the innermost local context; when exiting to an outer level of
+    nesting, the previous (parent) context will be restored.
+
+    This means that in the following example:
+
+    .. code-block::
+
+       .. py:class:: A
+
+          .. py:class:: SubA
+
+       .. py:class:: B
+
+          .. py:class:: SubB
+
+             .. py:currentclass:: A.SubA
+
+             .. py:method:: m1
+
+          .. py:method:: m2
+
+    The documented methods will be ``A.SubA.m1()`` and ``B.m2()``
+    """
+
+    has_content = False
+    required_arguments = 1
+    optional_arguments = 0
+    final_argument_whitespace = False
+    option_spec: OptionSpec = {}
+
+    def run(self) -> list[Node]:
+        """Adjust the current class context."""
+        context = self.arguments[0].strip()
+        classes = self.env.ref_context.setdefault('py:classes', [])
+        if classes:
+            classes[-1] = context
+        else:
+            classes.append(context)
+        self.env.ref_context['py:class'] = context
+        self.env.ref_context['py:classes'] = classes
+        return []
+
+
 class PyXRefRole(XRefRole):
     def process_link(self, env: BuildEnvironment, refnode: Element,
                      has_explicit_title: bool, title: str, target: str) -> tuple[str, str]:
@@ -595,6 +644,7 @@ class PythonDomain(Domain):
         'property':        PyProperty,
         'module':          PyModule,
         'currentmodule':   PyCurrentModule,
+        'currentclass':    PyCurrentClass,
         'decorator':       PyDecoratorFunction,
         'decoratormethod': PyDecoratorMethod,
     }
